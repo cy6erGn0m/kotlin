@@ -14,30 +14,23 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.lang.resolve.lazy.storage;
+package org.jetbrains.jet.storage;
 
+import com.intellij.openapi.application.Application;
+import com.intellij.openapi.application.ApplicationManager;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-
-public abstract class MemoizedFunctionToNotNullImpl<K, V> extends MemoizedFunctionToNullableImpl<K, V> implements MemoizedFunctionToNotNull<K, V> {
-
-    public MemoizedFunctionToNotNullImpl() {
-    }
-
-    public MemoizedFunctionToNotNullImpl(@NotNull Map<K, Object> map) {
-        super(map);
+public class ReenteringLazyValueComputationException extends RuntimeException {
+    public ReenteringLazyValueComputationException() {
     }
 
     @NotNull
     @Override
-    public V fun(K input) {
-        V result = super.fun(input);
-        assert result != null : "compute() returned null";
-        return result;
+    public synchronized Throwable fillInStackTrace() {
+        Application application = ApplicationManager.getApplication();
+        if (application == null || application.isInternal() || application.isUnitTestMode()) {
+            return super.fillInStackTrace();
+        }
+        return this;
     }
-
-    @NotNull
-    @Override
-    protected abstract V doCompute(K input);
 }

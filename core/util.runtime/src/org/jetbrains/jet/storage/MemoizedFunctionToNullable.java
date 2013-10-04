@@ -14,17 +14,13 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.utils;
+package org.jetbrains.jet.storage;
 
-import org.jetbrains.annotations.NotNull;
+import com.intellij.util.Function;
+import org.jetbrains.annotations.Nullable;
 
-public class ReenteringLazyValueComputationException extends RuntimeException {
-    public ReenteringLazyValueComputationException() {
-    }
-
-    @NotNull
+public interface MemoizedFunctionToNullable<P, R> extends Function<P, R> {
     @Override
-    public synchronized Throwable fillInStackTrace() {
-        return this;
-    }
+    @Nullable
+    R fun(P p);
 }

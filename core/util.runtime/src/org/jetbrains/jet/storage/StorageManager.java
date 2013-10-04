@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.lang.resolve.lazy.storage;
+package org.jetbrains.jet.storage;
 
 import com.intellij.openapi.util.Computable;
 import com.intellij.util.Consumer;
 import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public interface StorageManager {
     /**
@@ -38,15 +39,28 @@ public interface StorageManager {
     @NotNull
     <T> NotNullLazyValue<T> createLazyValue(@NotNull Computable<T> computable);
 
+    @NotNull
+    <T> NotNullLazyValue<T> createRecursionTolerantLazyValue(@NotNull Computable<T> computable, @NotNull T onRecursiveCall);
+
     /**
-     * {@code postCompute} is called after the value is computed, but before any other thread sees it (the current thread may
-     * see it in between)
+     * @param onRecursiveCall is called if the computation calls itself recursively.
+     *                        The parameter to it is {@code true} for the first call, {@code false} otherwise.
+     *                        If {@code onRecursiveCall} is {@code null}, an exception will be thrown on a recursive call,
+     *                        otherwise it's executed and its result is returned
+     * @param postCompute is called after the value is computed, but before any other thread sees it
      */
     @NotNull
-    <T> NotNullLazyValue<T> createLazyValueWithPostCompute(@NotNull Computable<T> computable, @NotNull Consumer<T> postCompute);
+    <T> NotNullLazyValue<T> createLazyValueWithPostCompute(
+            @NotNull Computable<T> computable,
+            @Nullable Function<Boolean, T> onRecursiveCall,
+            @NotNull Consumer<T> postCompute
+    );
 
     @NotNull
     <T> NullableLazyValue<T> createNullableLazyValue(@NotNull Computable<T> computable);
+
+    @NotNull
+    <T> NullableLazyValue<T> createRecursionTolerantNullableLazyValue(@NotNull Computable<T> computable, @Nullable T onRecursiveCall);
 
     /**
      * {@code postCompute} is called after the value is computed, but before any other thread sees it (the current thread may

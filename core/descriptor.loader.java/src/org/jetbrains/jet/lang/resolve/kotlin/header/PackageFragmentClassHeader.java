@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.util;
+package org.jetbrains.jet.lang.resolve.kotlin.header;
 
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
-
-public abstract class RecursionIntolerantLazyValueWithDefault<T> extends RecursionIntolerantLazyValue<T> {
-    private final T defaultValue;
-
-    protected RecursionIntolerantLazyValueWithDefault(T defaultValue) {
-        this.defaultValue = defaultValue;
-    }
-
-    @Override
-    protected T getValueOnErrorReentry() {
-        return defaultValue;
+public class PackageFragmentClassHeader extends KotlinClassHeader {
+    protected PackageFragmentClassHeader(int version) {
+        super(version);
     }
 }

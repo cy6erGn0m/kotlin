@@ -14,27 +14,16 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.plugin.highlighter;
+package org.jetbrains.jet.storage;
 
-import com.intellij.codeInsight.daemon.LightDaemonAnalyzerTestCase;
-import com.intellij.openapi.projectRoots.Sdk;
+import com.intellij.openapi.util.Computable;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.plugin.PluginTestCaseBase;
 
-public abstract class AbstractDeprecatedHighlightingTest extends LightDaemonAnalyzerTestCase {
-
+public interface NotNullLazyValue<T> extends Computable<T> {
     @Override
-    protected Sdk getProjectJDK() {
-        return PluginTestCaseBase.jdkFromIdeaHome();
-    }
-
-    protected void doTest(String filePath) throws Exception {
-        doTest(filePath, true, false);
-    }
-
     @NotNull
-    @Override
-    protected String getTestDataPath() {
-        return "";
-    }
+    T compute();
+
+    // Needed for proper toString() behaviors
+    boolean isComputed();
 }

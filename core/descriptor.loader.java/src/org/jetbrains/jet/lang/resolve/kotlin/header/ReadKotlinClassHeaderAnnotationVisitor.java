@@ -16,13 +16,13 @@
 
 package org.jetbrains.jet.lang.resolve.kotlin.header;
 
-import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.java.AbiVersionUtil;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
 import java.util.ArrayList;
@@ -32,9 +32,7 @@ import static org.jetbrains.jet.lang.resolve.java.AbiVersionUtil.isAbiVersionCom
 import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.AnnotationArgumentVisitor;
 import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.AnnotationVisitor;
 
-/* package */ class ReadDataFromAnnotationVisitor implements AnnotationVisitor {
-    private static final Logger LOG = Logger.getInstance(ReadDataFromAnnotationVisitor.class);
-
+/* package */ class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor {
     @SuppressWarnings("deprecation")
     private enum HeaderType {
         CLASS(JvmAnnotationNames.KOTLIN_CLASS),
@@ -46,8 +44,8 @@ import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.Annotat
         @NotNull
         private final JvmClassName annotation;
 
-        private HeaderType(@NotNull JvmClassName annotation) {
-            this.annotation = annotation;
+        private HeaderType(@NotNull FqName annotation) {
+            this.annotation = JvmClassName.byFqNameWithoutInnerClasses(annotation);
         }
 
         @Nullable
@@ -67,8 +65,18 @@ import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.Annotat
     @Nullable
     private HeaderType foundType = null;
 
+    private ReadKotlinClassHeaderAnnotationVisitor() {
+    }
+
     @Nullable
-    public KotlinClassFileHeader createHeader(@NotNull KotlinJvmBinaryClass kotlinClass) {
+    public static KotlinClassHeader read(@NotNull KotlinJvmBinaryClass kotlinClass) {
+        ReadKotlinClassHeaderAnnotationVisitor visitor = new ReadKotlinClassHeaderAnnotationVisitor();
+        kotlinClass.loadClassAnnotations(visitor);
+        return visitor.createHeader();
+    }
+
+    @Nullable
+    public KotlinClassHeader createHeader() {
         if (foundType == null) {
             return null;
         }
@@ -79,20 +87,21 @@ import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.Annotat
 
         switch (foundType) {
             case CLASS:
-                return serializedDataHeader(SerializedDataHeader.Kind.CLASS, kotlinClass);
+                return serializedDataHeader(SerializedDataHeader.Kind.CLASS);
             case PACKAGE:
-                return serializedDataHeader(SerializedDataHeader.Kind.PACKAGE, kotlinClass);
+                return serializedDataHeader(SerializedDataHeader.Kind.PACKAGE);
             case PACKAGE_FRAGMENT:
-                return new PackageFragmentClassFileHeader(version);
+                return new PackageFragmentClassHeader(version);
             default:
                 throw new UnsupportedOperationException("Unknown compatible HeaderType: " + foundType);
         }
     }
 
     @Nullable
-    private SerializedDataHeader serializedDataHeader(@NotNull SerializedDataHeader.Kind kind, @NotNull KotlinJvmBinaryClass kotlinClass) {
+    private SerializedDataHeader serializedDataHeader(@NotNull SerializedDataHeader.Kind kind) {
         if (annotationData == null) {
-            LOG.error("Kotlin annotation " + foundType + " is incorrect for class: " + kotlinClass);
+            // This means that the annotation is found and its ABI version is compatible, but there's no "data" string array in it.
+            // We tell the outside world that there's really no annotation at all
             return null;
         }
         return new SerializedDataHeader(version, annotationData, kind);
@@ -105,7 +114,7 @@ import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.Annotat
         if (newType == null) return null;
 
         if (foundType != null) {
-            LOG.error("Both annotations are present for compiled Kotlin file: " + foundType + " and " + newType);
+            // Ignore all Kotlin annotations except the first found
             return null;
         }
 

@@ -20,17 +20,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass;
 
-public abstract class KotlinClassFileHeader {
+public abstract class KotlinClassHeader {
     @Nullable
-    public static KotlinClassFileHeader readKotlinHeaderFromClassFile(@NotNull KotlinJvmBinaryClass kotlinClass) {
-        ReadDataFromAnnotationVisitor visitor = new ReadDataFromAnnotationVisitor();
-        kotlinClass.loadClassAnnotations(visitor);
-        return visitor.createHeader(kotlinClass);
+    public static KotlinClassHeader read(@NotNull KotlinJvmBinaryClass kotlinClass) {
+        return ReadKotlinClassHeaderAnnotationVisitor.read(kotlinClass);
     }
 
     private final int version;
 
-    protected KotlinClassFileHeader(int version) {
+    protected KotlinClassHeader(int version) {
         this.version = version;
     }
 

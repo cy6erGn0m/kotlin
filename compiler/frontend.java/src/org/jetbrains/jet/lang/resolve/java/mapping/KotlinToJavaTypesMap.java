@@ -20,17 +20,19 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
+import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
-import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lang.types.lang.PrimitiveType;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.jetbrains.jet.lang.resolve.java.mapping.PrimitiveTypesUtil.asmTypeForPrimitive;
 
 public class KotlinToJavaTypesMap extends JavaToKotlinClassMapBuilder {
     private static KotlinToJavaTypesMap instance = null;
@@ -45,6 +47,7 @@ public class KotlinToJavaTypesMap extends JavaToKotlinClassMapBuilder {
 
     private final Map<FqName, Type> asmTypes = new HashMap<FqName, Type>();
     private final Map<FqName, Type> asmNullableTypes = new HashMap<FqName, Type>();
+    private final Map<FqName, FqName> kotlinToJavaFqName = new HashMap<FqName, FqName>();
 
     private KotlinToJavaTypesMap() {
         init();
@@ -52,26 +55,25 @@ public class KotlinToJavaTypesMap extends JavaToKotlinClassMapBuilder {
     }
 
     private void initPrimitives() {
-        for (JvmPrimitiveType jvmPrimitiveType : JvmPrimitiveType.values()) {
-            FqName className = jvmPrimitiveType.getPrimitiveType().getClassName();
-
-            register(className, jvmPrimitiveType.getAsmType());
-            registerNullable(className, jvmPrimitiveType.getWrapper().getAsmType());
-        }
+        FqName builtInsFqName = KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME;
         for (JvmPrimitiveType jvmPrimitiveType : JvmPrimitiveType.values()) {
             PrimitiveType primitiveType = jvmPrimitiveType.getPrimitiveType();
-            register(primitiveType.getArrayClassName(), jvmPrimitiveType.getAsmArrayType());
+            Type asmType = asmTypeForPrimitive(jvmPrimitiveType);
+            FqName fqName = builtInsFqName.child(primitiveType.getTypeName());
+
+            register(fqName, asmType);
+
+            FqName wrapperFqName = jvmPrimitiveType.getWrapperFqName();
+            registerNullable(fqName, Type.getObjectType(JvmClassName.byFqNameWithoutInnerClasses(wrapperFqName).getInternalName()));
+            registerFqName(fqName, wrapperFqName);
+
+            register(builtInsFqName.child(primitiveType.getArrayTypeName()), Type.getType("[" + asmType.getDescriptor()));
         }
     }
 
     @Nullable
-    public Type getJavaAnalog(@NotNull JetType jetType) {
-        ClassifierDescriptor classifier = jetType.getConstructor().getDeclarationDescriptor();
-        assert classifier != null;
-        FqNameUnsafe className = DescriptorUtils.getFQName(classifier);
-        if (!className.isSafe()) return null;
-        FqName fqName = className.toSafe();
-        if (jetType.isNullable()) {
+    public Type getJavaAnalog(@NotNull FqName fqName, boolean isNullable) {
+        if (isNullable) {
             Type nullableType = asmNullableTypes.get(fqName);
             if (nullableType != null) {
                 return nullableType;
@@ -80,10 +82,26 @@ public class KotlinToJavaTypesMap extends JavaToKotlinClassMapBuilder {
         return asmTypes.get(fqName);
     }
 
+    /**
+     * E.g.
+     * jet.Throwable -> java.lang.Throwable
+     * jet.Deprecated -> java.lang.annotation.Deprecated
+     * jet.Int -> java.lang.Integer
+     * jet.IntArray -> null
+     */
+    @Nullable
+    public FqName getKotlinToJavaFqName(@NotNull FqName fqName) {
+        return kotlinToJavaFqName.get(fqName);
+    }
+
     @Override
     protected void register(@NotNull Class<?> javaClass, @NotNull ClassDescriptor kotlinDescriptor, @NotNull Direction direction) {
         if (direction == Direction.BOTH || direction == Direction.KOTLIN_TO_JAVA) {
-            register(kotlinDescriptor, AsmTypeConstants.getType(javaClass));
+            FqNameUnsafe fqNameUnsafe = DescriptorUtils.getFQName(kotlinDescriptor);
+            assert fqNameUnsafe.isSafe() : "FQ name of a mapped class should be safe: " + fqNameUnsafe;
+            FqName fqName = fqNameUnsafe.toSafe();
+            register(fqName, AsmTypeConstants.getType(javaClass));
+            registerFqName(fqName, new FqName(javaClass.getCanonicalName()));
         }
     }
 
@@ -100,17 +118,15 @@ public class KotlinToJavaTypesMap extends JavaToKotlinClassMapBuilder {
         }
     }
 
-    private void register(@NotNull ClassDescriptor kotlinDescriptor, @NotNull Type javaType) {
-        FqNameUnsafe fqName = DescriptorUtils.getFQName(kotlinDescriptor);
-        assert fqName.isSafe();
-        register(fqName.toSafe(), javaType);
-    }
-
     private void register(@NotNull FqName fqName, @NotNull Type type) {
         asmTypes.put(fqName, type);
     }
 
     private void registerNullable(@NotNull FqName fqName, @NotNull Type nullableType) {
         asmNullableTypes.put(fqName, nullableType);
+    }
+
+    private void registerFqName(@NotNull FqName kotlinFqName, @NotNull FqName javaFqName) {
+        kotlinToJavaFqName.put(kotlinFqName, javaFqName);
     }
 }

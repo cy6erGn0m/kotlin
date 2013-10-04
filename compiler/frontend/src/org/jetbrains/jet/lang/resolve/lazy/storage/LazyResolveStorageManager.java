@@ -18,6 +18,7 @@ package org.jetbrains.jet.lang.resolve.lazy.storage;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.storage.StorageManager;
 
 public interface LazyResolveStorageManager extends StorageManager {
     @NotNull

@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.lang.resolve.java;
+package org.jetbrains.jet.storage;
 
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiPackage;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.openapi.util.Computable;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.resolve.name.FqName;
 
-public interface PsiClassFinder {
+public interface NullableLazyValue<T> extends Computable<T> {
+    @Override
     @Nullable
-    PsiClass findPsiClass(@NotNull FqName fqName);
+    T compute();
 
-    @Nullable
-    PsiPackage findPsiPackage(@NotNull FqName fqName);
+    // Needed for proper toString() behaviors
+    boolean isComputed();
 }

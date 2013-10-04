@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.intellij.openapi.util.Computable;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.Consumer;
+import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -41,14 +42,14 @@ import org.jetbrains.jet.lang.resolve.lazy.data.FilteringClassLikeInfo;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassInfoUtil;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.ClassMemberDeclarationProvider;
-import org.jetbrains.jet.lang.resolve.lazy.storage.NotNullLazyValue;
-import org.jetbrains.jet.lang.resolve.lazy.storage.NullableLazyValue;
-import org.jetbrains.jet.lang.resolve.lazy.storage.StorageManager;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.*;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.TypeUtils;
+import org.jetbrains.jet.storage.NotNullLazyValue;
+import org.jetbrains.jet.storage.NullableLazyValue;
+import org.jetbrains.jet.storage.StorageManager;
 
 import java.util.*;
 
@@ -393,6 +394,12 @@ public class LazyClassDescriptor extends ClassDescriptorBase implements LazyDesc
                                 return Lists.newArrayList(Collections2.filter(allSupertypes, VALID_SUPERTYPE));
                             }
                         }
+                    }
+                },
+                new Function<Boolean, Collection<JetType>>() {
+                    @Override
+                    public Collection<JetType> fun(Boolean firstTime) {
+                        return Collections.emptyList();
                     }
                 },
                 new Consumer<Collection<JetType>>() {
